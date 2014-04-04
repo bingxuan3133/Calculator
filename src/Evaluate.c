@@ -2,8 +2,11 @@
 #include "Token.h"
 #include "Stack.h"
 #include "Error.h"
+#include "CException.h"
 #include <stdio.h>
 #include <string.h>
+
+ErrorCode e;
 
 EvaluateEntry evaluateTable[] = {	{.operator = "*", .callback = multiply},
 									{.operator = "/", .callback = divide},
@@ -15,11 +18,74 @@ EvaluateEntry evaluateTable[] = {	{.operator = "*", .callback = multiply},
 									{.operator = "|", .callback = or}};
 
 int evaluate(char *expression) {
+	Stack *dataStack, *operatorStack;
+	dataStack = stackNew();
+	operatorStack = stackNew();
+	Tokenizer *tokenizer = tokenizerNew(expression);
+	Token *token;
 	
+	NumberToken *result;
+	int i;
+	
+	for(i = 0; i < 3 || token == NULL; i++) {
+		token = nextToken(tokenizer);
+		if(i % 2 == 0) {
+			if(token->type == NUMBER_TOKEN) {
+				push(dataStack, (NumberToken *)token);
+			} else {
+				Throw(ERR_NOT_DATA);
+			}
+		} else {
+			if(token->type == OPERATOR_TOKEN) {
+				push(operatorStack, (OperatorToken *)token);
+			} else {
+				Throw(ERR_NOT_OPERATOR);
+			}
+		}
+	}
+	
+	token = nextToken(tokenizer);
+	if(token == NULL) {
+		evaluateAllOperatorsOnStack(dataStack, operatorStack);
+	} else {
+		if(token->type != OPERATOR_TOKEN)
+			Throw(ERR_NOT_OPERATOR);
+	
+		tryEvaluateOperatorsOnStackThenPush(dataStack, operatorStack, (OperatorToken *)token);
+		
+		token = nextToken(tokenizer);
+		if(token != NULL) {
+			if(token->type == NUMBER_TOKEN) {
+				push(dataStack, (NumberToken *)token);
+			} else {
+				Throw(ERR_NOT_DATA);
+			}
+		} else {
+			Throw(ERR_INVALID_EXPRESSION);
+		}
+	}
+	
+	result = pop(dataStack);
+	
+	return result->value;
 }
 
 void tryEvaluateOperatorsOnStackThenPush(Stack *dataStack, Stack *operatorStack, OperatorToken *operator) {
+	OperatorToken *operatorAtTos;
+	int firstTime = 1;
 	
+	while((operatorAtTos = pop(operatorStack)) != NULL) {
+		if(operator->precedence > operatorAtTos->precedence) {
+			if(firstTime)
+				push(operatorStack, operatorAtTos);
+			break;
+		} else {
+			evaluateOperator(dataStack, operatorAtTos);
+			firstTime = 0;
+		}
+	}
+
+	push(operatorStack, operator);	
 }
 
 void evaluateAllOperatorsOnStack(Stack *dataStack, Stack *operatorStack) {
@@ -48,7 +114,6 @@ void evaluateOperator(Stack *dataStack, OperatorToken *operator) {
 	resultToken = createNumberToken(result);
 	
 	push(dataStack, resultToken);
-	
 }
 
 int multiply(int value1, int value2) {return value1 * value2;}
