@@ -27,7 +27,7 @@ int evaluate(char *expression) {
 	NumberToken *result;
 	int i;
 	
-	for(i = 0; i < 3 || token == NULL; i++) {
+	for(i = 0; i < 3; i++) {
 		token = nextToken(tokenizer);
 		if(i % 2 == 0) {
 			if(token->type == NUMBER_TOKEN) {
@@ -45,9 +45,7 @@ int evaluate(char *expression) {
 	}
 	
 	token = nextToken(tokenizer);
-	if(token == NULL) {
-		evaluateAllOperatorsOnStack(dataStack, operatorStack);
-	} else {
+	while(token != NULL) {
 		if(token->type != OPERATOR_TOKEN)
 			Throw(ERR_NOT_OPERATOR);
 	
@@ -63,7 +61,10 @@ int evaluate(char *expression) {
 		} else {
 			Throw(ERR_INVALID_EXPRESSION);
 		}
+		token = nextToken(tokenizer);
 	}
+	
+	evaluateAllOperatorsOnStack(dataStack, operatorStack);
 	
 	result = pop(dataStack);
 	
@@ -72,16 +73,13 @@ int evaluate(char *expression) {
 
 void tryEvaluateOperatorsOnStackThenPush(Stack *dataStack, Stack *operatorStack, OperatorToken *operator) {
 	OperatorToken *operatorAtTos;
-	int firstTime = 1;
 	
 	while((operatorAtTos = pop(operatorStack)) != NULL) {
 		if(operator->precedence > operatorAtTos->precedence) {
-			if(firstTime)
-				push(operatorStack, operatorAtTos);
+			push(operatorStack, operatorAtTos);
 			break;
 		} else {
 			evaluateOperator(dataStack, operatorAtTos);
-			firstTime = 0;
 		}
 	}
 
